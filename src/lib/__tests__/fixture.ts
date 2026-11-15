@@ -1,6 +1,6 @@
 // A trimmed copy of how the OSRS Wiki renders drop tables (DropsLine template output).
 const row = (name: string, qty: string, rarity: string, frac = rarity) => `
-<tr><td class="inventory-image"><a href="/w/${encodeURIComponent(name.replace(/ /g, '_'))}" title="${name}"><img src="x.png"></a></td>
+<tr><td class="inventory-image"><a href="/w/${encodeURIComponent(name.replace(/ /g, '_'))}" title="${name}"><img src="/images/${encodeURIComponent(name.replace(/ /g, '_'))}.png?1a2b3"></a></td>
 <td class="item-col"><a href="/w/${encodeURIComponent(name.replace(/ /g, '_'))}" title="${name}">${name}</a></td>
 <td data-sort-value="1">${qty}</td>
 <td class="table-bg-blue" data-sort-value="0.1"><span data-drop-fraction="${frac}">${rarity}</span><sup class="reference">[1]</sup></td>

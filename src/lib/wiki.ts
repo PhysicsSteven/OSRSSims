@@ -8,7 +8,7 @@ const PRICES_API = 'https://prices.runescape.wiki/api/v1/osrs';
 const API_USER_AGENT = 'OSRSSims drop simulator (https://github.com/PhysicsSteven/OSRSSims)';
 
 const PAGE_TTL = 24 * 60 * 60 * 1000;
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 function cacheGet<T>(key: string, ttl: number): T | null {
   try {
@@ -103,6 +103,7 @@ export async function searchTitles(q: string): Promise<string[]> {
 interface MappingEntry {
   id: number;
   name: string;
+  icon?: string;
   highalch?: number;
   value?: number;
 }
@@ -111,6 +112,8 @@ export interface PriceBook {
   /** GP for one of the named item: GE mid price, or 0 if the item does not trade. */
   priceOf: (name: string) => number;
   isTradeable: (name: string) => boolean;
+  /** Sprite file name from the prices API, if the item trades. */
+  iconOf: (name: string) => string | undefined;
   updated: number;
 }
 
@@ -121,7 +124,7 @@ export async function loadPrices(): Promise<PriceBook> {
   if (!mapping) {
     const res = await fetch(`${PRICES_API}/mapping`);
     if (!res.ok) throw new Error(`Prices API returned HTTP ${res.status}`);
-    mapping = ((await res.json()) as MappingEntry[]).map(({ id, name, highalch, value }) => ({ id, name, highalch, value }));
+    mapping = ((await res.json()) as MappingEntry[]).map(({ id, name, icon, highalch, value }) => ({ id, name, icon, highalch, value }));
     cacheSet('mapping', mapping);
   }
   let latest = cacheGet<Record<string, number>>('latest', 10 * 60 * 1000);
@@ -137,7 +140,9 @@ export async function loadPrices(): Promise<PriceBook> {
     cacheSet('latest', latest);
   }
   const byName = new Map<string, number>();
+  const icons = new Map<string, string>();
   for (const m of mapping) {
+    if (m.icon) icons.set(m.name.toLowerCase(), m.icon);
     const p = latest[String(m.id)];
     if (p) byName.set(m.name.toLowerCase(), p);
   }
@@ -151,6 +156,14 @@ export async function loadPrices(): Promise<PriceBook> {
       const n = norm(name);
       return n in FIXED || byName.has(n);
     },
+    iconOf: (name) => icons.get(norm(name)),
     updated: Date.now(),
   };
+}
+
+/** URL of an item's sprite on the wiki's image server (hotlinked, not bundled). */
+export function spriteUrl(name: string, known?: string, iconFile?: string): string {
+  if (known) return known;
+  const file = (iconFile ?? `${name}.png`).replace(/ /g, '_');
+  return `https://oldschool.runescape.wiki/images/${encodeURIComponent(file)}`;
 }

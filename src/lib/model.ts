@@ -7,6 +7,7 @@ export interface Leaf {
   name: string;
   quantity: Quantity;
   noted: boolean;
+  image?: string;
 }
 
 export interface Outcome {
@@ -73,7 +74,7 @@ export function makePool(name: string, outcomes: Outcome[], notes: string[]): Po
 }
 
 function leafOf(e: DropEntry): Leaf {
-  return { name: e.name, quantity: e.quantity, noted: e.quantity.noted };
+  return { name: e.name, quantity: e.quantity, noted: e.quantity.noted, image: e.image };
 }
 
 async function outcomeOf(
@@ -163,6 +164,7 @@ export interface ItemRate {
   meanQty: number;
   pet: boolean;
   tertiary: boolean;
+  image?: string;
   /** True when the item can drop straight from this source, not only via a shared table like the RDT. */
   direct: boolean;
 }
@@ -176,6 +178,7 @@ export function itemRates(src: DropSource): Map<string, ItemRate> {
       r = { name: leaf.name, routes: [], meanQty: meanQuantity(leaf.quantity), pet, tertiary, direct };
       rates.set(leaf.name, r);
     }
+    r.image ??= leaf.image;
     r.routes.push({ trials, p });
     r.pet ||= pet;
     r.direct ||= direct;

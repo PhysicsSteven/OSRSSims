@@ -13,6 +13,8 @@ export interface DropEntry {
   rarity: Rarity;
   rarityText: string;
   kind: DropKind;
+  /** Item sprite URL on the wiki's image server, when the row shows one. */
+  image?: string;
   /** Section headings above the table, outermost first. */
   headings: string[];
   /** Set when the row is a roll on another table (rare drop table, gem drop table, ...). */
@@ -51,6 +53,17 @@ function linkTarget(a: HTMLAnchorElement | null): { page: string; section?: stri
   const page = decodeURIComponent(m[1]).replace(/_/g, ' ');
   const section = m[2] ? decodeURIComponent(m[2]).replace(/_/g, ' ') : undefined;
   return { page, section };
+}
+
+const WIKI_ORIGIN = 'https://oldschool.runescape.wiki';
+
+function imageOf(tr: Element): string | undefined {
+  const img = tr.querySelector('img');
+  const src = img?.getAttribute('data-src') ?? img?.getAttribute('src');
+  if (!src || src.startsWith('data:')) return undefined;
+  if (src.startsWith('//')) return `https:${src}`;
+  if (src.startsWith('/')) return `${WIKI_ORIGIN}${src}`;
+  return /^https?:/.test(src) ? src : undefined;
 }
 
 function findColumns(table: Element): { item: number; qty: number; rarity: number } | null {
@@ -123,6 +136,7 @@ export function parseDropTables(html: string): ParsedTable[] {
         rarityText: r.text,
         kind: classify(headings, r.rarity),
         headings,
+        image: imageOf(tr),
       };
       if (SUBTABLE_RE.test(name) || SUBTABLE_RE.test(shownName)) {
         const target = linkTarget(link) ?? { page: name };

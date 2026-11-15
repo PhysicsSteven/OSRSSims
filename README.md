@@ -46,4 +46,4 @@ Every loaded source has a "Show the drop table as read from the wiki" panel so y
 
 ## Credits
 
-Drop data from the [Old School RuneScape Wiki](https://oldschool.runescape.wiki/), licensed CC BY-NC-SA 3.0. Prices from the [OSRS Wiki real-time prices API](https://prices.runescape.wiki/). Not affiliated with Jagex. No game art is bundled.
+Drop data from the [Old School RuneScape Wiki](https://oldschool.runescape.wiki/), licensed CC BY-NC-SA 3.0. Prices from the [OSRS Wiki real-time prices API](https://prices.runescape.wiki/). Item sprites are loaded directly from the wiki's image server and are not stored in this repository; they are © Jagex. Not affiliated with Jagex.

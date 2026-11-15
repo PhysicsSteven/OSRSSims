@@ -105,3 +105,9 @@ table.loot th, table.loot td { padding: 6px 8px; border-bottom: 1px solid var(--
 table.loot th { font-size: 12px; color: var(--muted); font-weight: 600; }
 .num { text-align: right !important; }
 footer { margin-top: 32px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.sprite { width: 32px; height: 32px; object-fit: contain; flex: none; display: inline-block; image-rendering: pixelated; }
+.item { display: inline-flex; align-items: center; gap: 8px; }
+.slot-name { display: flex; align-items: center; gap: 8px; }
+.pet { display: block; }
+.pet .sprite { vertical-align: middle; margin-right: 6px; }
+table.loot td { padding-top: 3px; padding-bottom: 3px; }

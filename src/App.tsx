@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildSource, itemRates, perUnitRate, uniqueItems, type DropSource } from './lib/model';
 import type { LootLine } from './lib/sim';
 import { chanceByNow, luckPercentile, normalCdf, percentileOf, quantile, valueMoments } from './lib/stats';
-import { clearCache, loadPage, loadPrices, resolveSubtable, searchTitles, type PriceBook } from './lib/wiki';
+import { clearCache, loadPage, loadPrices, resolveSubtable, searchTitles, spriteUrl, type PriceBook } from './lib/wiki';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 const PICKS: Array<{ group: string; items: string[] }> = [
@@ -62,6 +62,12 @@ function LuckBar({ value }: { value: number }) {
       <span className="luck-num">{Math.round(value * 100)}</span>
     </span>
   );
+}
+
+function Sprite({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <span className="sprite" />;
+  return <img className="sprite" src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />;
 }
 
 function readUrl(): { source?: string; kills?: number } {
@@ -337,7 +343,12 @@ export default function App() {
                     .sort((a, b) => perUnitRate(b) - perUnitRate(a))
                     .map((r) => (
                       <tr key={r.name}>
-                        <td>{r.name}</td>
+                        <td>
+                          <span className="item">
+                            <Sprite src={spriteUrl(r.name, r.image, prices?.iconOf(r.name))} />
+                            {r.name}
+                          </span>
+                        </td>
                         <td>{r.pet ? 'pet' : r.tertiary ? 'tertiary' : r.direct ? 'main' : 'shared table'}</td>
                         <td className="num">{oneIn(perUnitRate(r))}</td>
                         <td className="num">{gp(priceOf(r.name))}</td>
@@ -356,7 +367,7 @@ export default function App() {
 
       <footer>
         Drop data from the <a href="https://oldschool.runescape.wiki/">Old School RuneScape Wiki</a> (CC BY-NC-SA 3.0). Prices from the{' '}
-        <a href="https://prices.runescape.wiki/">OSRS Wiki real-time prices API</a>, using the midpoint of the latest buy and sell. Not affiliated with Jagex.{' '}
+        <a href="https://prices.runescape.wiki/">OSRS Wiki real-time prices API</a>, using the midpoint of the latest buy and sell. Item sprites © Jagex, loaded from the wiki. Not affiliated with Jagex.{' '}
         <button
           className="link"
           onClick={() => {
@@ -387,6 +398,7 @@ function ResultsView(props: {
   const unitWord = source.unit === 'casket' ? 'caskets' : 'kills';
   const unitAbbr = source.unit === 'casket' ? 'casket' : 'kc';
   const byName = new Map(results.loot.map((l) => [l.name, l]));
+  const icon = (name: string) => spriteUrl(name, rates.get(name)?.image, prices?.iconOf(name));
   const total = results.loot.reduce((a, l) => a + l.qty * priceOf(l.name), 0);
   const expected = moments.mean * n;
   const gpLuck = results.samples.length
@@ -463,7 +475,8 @@ function ResultsView(props: {
             const line = byName.get(p.name);
             const r = perUnitRate(p);
             return (
-              <p key={p.name}>
+              <p key={p.name} className="pet">
+                <Sprite src={icon(p.name)} />
                 <b>{p.name}</b> ({oneIn(r)} per {source.unit === 'casket' ? 'casket' : 'kill'}):{' '}
                 {line ? (
                   <>
@@ -491,7 +504,10 @@ function ResultsView(props: {
               const luck = luckPercentile(u, n, line?.drops ?? 0);
               return (
                 <div key={u.name} className={`slot ${line ? 'got' : ''}`}>
-                  <div className="slot-name">{u.name}</div>
+                  <div className="slot-name">
+                    <Sprite src={icon(u.name)} />
+                    {u.name}
+                  </div>
                   <div className="slot-meta">
                     <span>{oneIn(r)}</span>
                     <span>{line ? `×${line.drops} · first at ${line.first.toLocaleString()}` : 'not yet'}</span>
@@ -538,7 +554,12 @@ function ResultsView(props: {
                 const rate = rates.get(l.name);
                 return (
                   <tr key={l.name}>
-                    <td>{l.name}</td>
+                    <td>
+                      <span className="item">
+                        <Sprite src={icon(l.name)} />
+                        {l.name}
+                      </span>
+                    </td>
                     <td className="num">{l.qty.toLocaleString()}</td>
                     <td className="num">{l.drops.toLocaleString()}</td>
                     <td className="num">{rate ? oneIn(perUnitRate(rate)) : ''}</td>

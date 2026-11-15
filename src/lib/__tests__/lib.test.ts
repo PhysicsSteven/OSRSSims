@@ -42,6 +42,7 @@ describe('page parsing and model', () => {
     expect(all.find((e) => e.name === 'Pet snakeling')?.kind).toBe('pet');
     expect(all.find((e) => e.name === 'Rare drop table')?.subtable?.page).toBe('Rare drop table');
     expect(all.find((e) => e.name === 'Coal')?.quantity.noted).toBe(true);
+    expect(all.find((e) => e.name === 'Bones')?.image).toBe('https://oldschool.runescape.wiki/images/Bones.png?1a2b3');
   });
 
   it('resolves the rare drop table and its gem table', async () => {
