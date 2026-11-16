@@ -28,7 +28,10 @@ function sampleQty(leaf: Leaf, rng: Rng): number {
 
 export type Emit = (name: string, qty: number) => void;
 
-function rollPool(pool: Pool, rng: Rng, emit: Emit, depth = 0): void {
+/** State that lives across kills within one player's run, such as the DT2 vestige counter. */
+export type RunState = Map<string, number>;
+
+function rollPool(pool: Pool, rng: Rng, emit: Emit, state: RunState, depth = 0): void {
   const r = rng();
   const cum = pool.cumulative;
   if (!cum.length || r >= cum[cum.length - 1]) return; // nothing
@@ -39,23 +42,31 @@ function rollPool(pool: Pool, rng: Rng, emit: Emit, depth = 0): void {
     if (r < cum[mid]) hi = mid;
     else lo = mid + 1;
   }
-  emitOutcome(pool.outcomes[lo], rng, emit, depth);
+  emitOutcome(pool.outcomes[lo], rng, emit, state, depth);
 }
 
-function emitOutcome(o: Outcome, rng: Rng, emit: Emit, depth: number): void {
+function emitOutcome(o: Outcome, rng: Rng, emit: Emit, state: RunState, depth: number): void {
   if (o.leaf) emit(o.leaf.name, sampleQty(o.leaf, rng));
-  else if (o.sub && depth < 6) rollPool(o.sub, rng, emit, depth + 1);
+  else if (o.sub && depth < 6) rollPool(o.sub, rng, emit, state, depth + 1);
+  else if (o.counter) {
+    const n = state.get(o.counter.key) ?? 0;
+    state.set(o.counter.key, (n + 1) % o.counter.steps.length);
+    for (const leaf of o.counter.steps[n]) emit(leaf.name, sampleQty(leaf, rng));
+  }
 }
 
-/** Rolls one kill or casket and reports every item through emit. */
-export function rollOnce(src: DropSource, rng: Rng, emit: Emit): void {
+/**
+ * Rolls one kill or casket and reports every item through emit. Pass the same `state` for
+ * every kill of one player so counters (DT2 vestiges) carry over.
+ */
+export function rollOnce(src: DropSource, rng: Rng, emit: Emit, state: RunState): void {
   for (const leaf of src.always) emit(leaf.name, sampleQty(leaf, rng));
   const rolls = src.mainRolls.min === src.mainRolls.max ? src.mainRolls.min : randInt(rng, src.mainRolls.min, src.mainRolls.max);
-  for (let i = 0; i < rolls; i++) rollPool(src.main, rng, emit);
+  for (let i = 0; i < rolls; i++) rollPool(src.main, rng, emit, state);
   for (const ind of src.independent) {
     for (let i = 0; i < ind.rolls; i++) {
       if (rng() >= ind.p) continue;
-      emitOutcome(ind.outcome, rng, emit, 0);
+      emitOutcome(ind.outcome, rng, emit, state, 0);
       if (ind.also) for (const leaf of ind.also) emit(leaf.name, sampleQty(leaf, rng));
     }
   }
@@ -86,7 +97,8 @@ export function simulate(src: DropSource, units: number, rng: Rng = Math.random)
     line.qty += qty;
     line.drops += 1;
   };
-  for (current = 1; current <= units; current++) rollOnce(src, rng, emit);
+  const state: RunState = new Map();
+  for (current = 1; current <= units; current++) rollOnce(src, rng, emit, state);
   return { units, loot };
 }
 
@@ -100,8 +112,9 @@ export function unitsToComplete(src: DropSource, items: string[], rng: Rng = Mat
   const emit: Emit = (name) => {
     missing.delete(name);
   };
+  const state: RunState = new Map();
   for (let n = 1; n <= maxUnits; n++) {
-    rollOnce(src, rng, emit);
+    rollOnce(src, rng, emit, state);
     if (missing.size === 0) return n;
   }
   return null;
@@ -122,8 +135,9 @@ export function simulateUntilComplete(src: DropSource, items: string[], rng: Rng
     line.drops += 1;
     missing.delete(name);
   };
+  const state: RunState = new Map();
   for (current = 1; current <= maxUnits; current++) {
-    rollOnce(src, rng, emit);
+    rollOnce(src, rng, emit, state);
     if (missing.size === 0) return { units: current, loot, complete: true };
   }
   return { units: maxUnits, loot, complete: false };
@@ -144,7 +158,8 @@ export function valueSamples(src: DropSource, units: number, runs: number, price
     const emit: Emit = (name, qty) => {
       v += qty * price(name);
     };
-    for (let i = 0; i < units; i++) rollOnce(src, rng, emit);
+    const state: RunState = new Map();
+    for (let i = 0; i < units; i++) rollOnce(src, rng, emit, state);
     out.push(v);
   }
   return out.sort((a, b) => a - b);

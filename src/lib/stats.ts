@@ -31,6 +31,21 @@ function logGamma(x: number): number {
 
 /** Returns [P(X < k), P(X = k)] for the count of an item over `units` kills. */
 export function countProbabilities(rate: ItemRate, units: number, k: number): [number, number] {
+  if (rate.every && rate.every > 1) {
+    // The item comes on every n-th success, so X = floor(S / n) where S counts the successes.
+    const n = rate.every;
+    const plain = { ...rate, every: undefined };
+    const below = successesBelow(plain, units, n * k);
+    return [below, Math.max(0, successesBelow(plain, units, n * (k + 1)) - below)];
+  }
+  return plainCountProbabilities(rate, units, k);
+}
+
+function successesBelow(rate: ItemRate, units: number, k: number): number {
+  return plainCountProbabilities(rate, units, k)[0];
+}
+
+function plainCountProbabilities(rate: ItemRate, units: number, k: number): [number, number] {
   const mean = rate.routes.reduce((a, r) => a + units * r.trials * r.p, 0);
   const variance = rate.routes.reduce((a, r) => a + units * r.trials * r.p * (1 - r.p), 0);
   if (mean <= 0) return [0, k === 0 ? 1 : 0];
@@ -65,6 +80,7 @@ export function luckPercentile(rate: ItemRate, units: number, k: number): number
 
 /** Chance that at least one of the item has dropped within `units` kills. */
 export function chanceByNow(rate: ItemRate, units: number): number {
+  if (rate.every && rate.every > 1) return 1 - countProbabilities(rate, units, 1)[0];
   const logNone = rate.routes.reduce((a, r) => a + units * r.trials * Math.log1p(-Math.min(r.p, 1 - 1e-15)), 0);
   return 1 - Math.exp(logNone);
 }
@@ -84,6 +100,23 @@ function leafMoments(leaf: Leaf, price: PriceOf): Moments {
 function outcomeMoments(o: Outcome, price: PriceOf): Moments {
   if (o.leaf) return leafMoments(o.leaf, price);
   if (o.sub) return poolMoments(o.sub, price);
+  if (o.counter) {
+    // Average over the steps of the cycle (exact for the mean; the variance treats steps as independent).
+    let m1 = 0;
+    let m2 = 0;
+    for (const step of o.counter.steps) {
+      let s1 = 0;
+      let s2 = 0;
+      for (const leaf of step) {
+        const m = leafMoments(leaf, price);
+        s1 += m.m1;
+        s2 += m.m2;
+      }
+      m1 += s1 / o.counter.steps.length;
+      m2 += s2 / o.counter.steps.length;
+    }
+    return { m1, m2 };
+  }
   return { m1: 0, m2: 0 };
 }
 

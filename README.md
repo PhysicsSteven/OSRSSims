@@ -10,6 +10,7 @@ It reads drop tables and prices **live from the OSRS Wiki** every time you load 
 
 - Simulate any number of kills (up to 2,000,000) on any wiki page that has a drop table: bosses, Slayer monsters, regular monsters.
 - Simulate clue scroll reward caskets for every tier (beginner to master), using the correct number of reward rolls per casket.
+- Desert Treasure II bosses use the in-game gold ring counter for vestiges: every vestige roll gives a gold ring, then two gold rings, then the vestige, and the count carries over between kills. Luck and "chance by now" figures for vestiges use the same three-roll maths.
 - Handles always drops, the main drop table, tertiary drops (clues, keys, jars), pets, and shared tables such as the rare drop table and gem drop table.
 - Loot tally with GE value of every item, using the wiki's real-time prices.
 - Collection log view with first-drop kill count and a luck percentile for each slot.
