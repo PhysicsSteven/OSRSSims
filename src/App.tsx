@@ -11,12 +11,23 @@ import { DOOM_ALIASES, DOOM_TITLE } from './lib/doom';
 import { BLUDGEON_PIECES, isSire, SIRE_TITLE, UNSIRED, UNSIRED_ITEMS, unsiredValue } from './lib/sire';
 import { PacePanel, type Pace } from './PacePanel';
 import { formatHours } from './lib/killTime';
+import { CoxPanel, ToaPanel } from './RaidPanel';
+import { COX_ALIASES, COX_TITLE } from './lib/cox';
+import { TOA_ALIASES, TOA_TITLE } from './lib/toa';
+
+/** Sources whose loot does not fit a drop table, so they get their own module instead of the wiki table. */
+const MODULES: Array<{ title: string; aliases: RegExp }> = [
+  { title: DOOM_TITLE, aliases: DOOM_ALIASES },
+  { title: COX_TITLE, aliases: COX_ALIASES },
+  { title: TOA_TITLE, aliases: TOA_ALIASES },
+];
 
 const PICKS: Array<{ group: string; items: string[] }> = [
   {
     group: 'Bosses',
     items: ['Zulrah', 'Vorkath', 'Cerberus', SIRE_TITLE, 'Kraken', 'General Graardor', "Kree'arra", 'Commander Zilyana', "K'ril Tsutsaroth", 'Corporeal Beast', 'Kalphite Queen', 'Callisto', 'Duke Sucellus', 'The Leviathan', 'Vardorvis', 'The Whisperer', 'Phantom Muspah', DOOM_TITLE],
   },
+  { group: 'Raids', items: [COX_TITLE, TOA_TITLE] },
   { group: 'Slayer', items: ['Abyssal demon', 'Gargoyle', 'Kurask', 'Smoke devil', 'Dust devil', 'Hydra', 'Alchemical Hydra'] },
   {
     group: 'Clue caskets',
@@ -90,15 +101,16 @@ export default function App() {
   }, [query, showSuggest]);
 
   const load = useCallback(async (t: string, fresh = false) => {
-    if (DOOM_ALIASES.test(t.trim())) {
-      // Doom's loot is per delve level rather than a drop table, so it has its own module.
+    const mod = MODULES.find((m) => m.aliases.test(t.trim()));
+    if (mod) {
+      // Doom (per delve level) and the raids (points-based) have their own modules.
       setSource(null);
       setResults(null);
       setLoadError(null);
-      setTitle(DOOM_TITLE);
-      setQuery(DOOM_TITLE);
+      setTitle(mod.title);
+      setQuery(mod.title);
       const q = new URLSearchParams(location.search);
-      q.set('source', DOOM_TITLE);
+      q.set('source', mod.title);
       q.delete('kills');
       history.replaceState(null, '', `?${q}`);
       return;
@@ -174,7 +186,7 @@ export default function App() {
         setLoadError(res.message);
         return;
       }
-      if (res.type === 'doom') return;
+      if (res.type === 'doom' || res.type === 'raid') return;
       setResults({
         mode: res.type,
         units: res.units,
@@ -263,6 +275,8 @@ export default function App() {
       </section>
 
       {title === DOOM_TITLE && !source && !loading && <DoomPanel prices={prices} />}
+      {title === COX_TITLE && !source && !loading && <CoxPanel prices={prices} />}
+      {title === TOA_TITLE && !source && !loading && <ToaPanel prices={prices} />}
 
       {effective && rates && (
         <section className="panel controls">
