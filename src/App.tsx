@@ -8,6 +8,7 @@ import { gp, luckWord, oneIn, pct } from './format';
 import { LuckBar, NumberInput, Sprite } from './ui';
 import { DoomPanel } from './DoomPanel';
 import { DOOM_ALIASES, DOOM_TITLE } from './lib/doom';
+import { BLUDGEON_PIECES, isSire, SIRE_TITLE, UNSIRED, UNSIRED_ITEMS, unsiredValue } from './lib/sire';
 import { PacePanel, type Pace } from './PacePanel';
 import { formatHours } from './lib/killTime';
 import { CoxPanel, ToaPanel } from './RaidPanel';
@@ -24,7 +25,7 @@ const MODULES: Array<{ title: string; aliases: RegExp }> = [
 const PICKS: Array<{ group: string; items: string[] }> = [
   {
     group: 'Bosses',
-    items: ['Zulrah', 'Vorkath', 'Cerberus', 'Kraken', 'General Graardor', "Kree'arra", 'Commander Zilyana', "K'ril Tsutsaroth", 'Corporeal Beast', 'Kalphite Queen', 'Callisto', 'Duke Sucellus', 'The Leviathan', 'Vardorvis', 'The Whisperer', 'Phantom Muspah', DOOM_TITLE],
+    items: ['Zulrah', 'Vorkath', 'Cerberus', SIRE_TITLE, 'Kraken', 'General Graardor', "Kree'arra", 'Commander Zilyana', "K'ril Tsutsaroth", 'Corporeal Beast', 'Kalphite Queen', 'Callisto', 'Duke Sucellus', 'The Leviathan', 'Vardorvis', 'The Whisperer', 'Phantom Muspah', DOOM_TITLE],
   },
   { group: 'Raids', items: [COX_TITLE, TOA_TITLE] },
   { group: 'Slayer', items: ['Abyssal demon', 'Gargoyle', 'Kurask', 'Smoke devil', 'Dust devil', 'Hydra', 'Alchemical Hydra'] },
@@ -51,10 +52,10 @@ type Results = {
   source: string;
 };
 
-function readUrl(): { source?: string; kills?: number } {
+function readUrl(): { source?: string; kills?: number; consume: boolean } {
   const q = new URLSearchParams(location.search);
   const kills = Number(q.get('kills'));
-  return { source: q.get('source') ?? undefined, kills: kills > 0 ? kills : undefined };
+  return { source: q.get('source') ?? undefined, kills: kills > 0 ? kills : undefined, consume: q.get('consume') === '1' };
 }
 
 export default function App() {
@@ -71,6 +72,7 @@ export default function App() {
   const [units, setUnits] = useState(initial.kills ?? 1000);
   const [threshold, setThreshold] = useState(1 / 100);
   const [rollsOverride, setRollsOverride] = useState<number | null>(null);
+  const [consume, setConsume] = useState(initial.consume);
   const [mimicOn, setMimicOn] = useState(true);
   const [results, setResults] = useState<Results | null>(null);
   const [running, setRunning] = useState(false);
@@ -150,13 +152,19 @@ export default function App() {
         notes: src.notes.filter((n) => !n.startsWith('Mimic encounters are on')),
       };
     if (rollsOverride != null) src = { ...src, mainRolls: { min: rollsOverride, max: rollsOverride } };
+    if (consume && isSire(src.title)) src = { ...src, consumeUnsired: true };
     return src;
-  }, [source, rollsOverride, mimicOn, hasMimic]);
+  }, [source, rollsOverride, mimicOn, hasMimic, consume]);
 
   const rates = useMemo(() => (effective ? itemRates(effective) : null), [effective]);
   const uniques = useMemo(() => (rates ? uniqueItems(rates, threshold) : []), [rates, threshold]);
   const priceOf = useCallback((n: string) => prices?.priceOf(n) ?? 0, [prices]);
-  const moments = useMemo(() => (effective ? valueMoments(effective, priceOf) : null), [effective, priceOf]);
+  const moments = useMemo(() => {
+    if (!effective) return null;
+    // An offered unsired is worth what the Font gives on average.
+    const font = effective.consumeUnsired ? unsiredValue(priceOf) : 0;
+    return valueMoments(effective, effective.consumeUnsired ? (n) => (n === UNSIRED ? font : priceOf(n)) : priceOf);
+  }, [effective, priceOf]);
 
   const run = (mode: 'run' | 'complete') => {
     const w = workerRef.current;
@@ -324,6 +332,30 @@ export default function App() {
               </label>
             )}
           </div>
+          {isSire(effective.title) && (
+            <div className="row">
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={consume}
+                  onChange={(e) => {
+                    setConsume(e.target.checked);
+                    setResults(null);
+                    const q = new URLSearchParams(location.search);
+                    if (e.target.checked) q.set('consume', '1');
+                    else q.delete('consume');
+                    history.replaceState(null, '', `?${q}`);
+                  }}
+                />
+                Consume the unsired: offer each one at the Font of Consumption
+              </label>
+              {consume && (
+                <span className="muted small">
+                  Bludgeon pieces come out with no duplicates until each bludgeon is complete, and the Abyssal orphan leaves the table once you have it.
+                </span>
+              )}
+            </div>
+          )}
           <div className="row">
             <button className="primary" disabled={running} onClick={() => run('run')}>
               {running ? 'Simulating…' : `Simulate ${units.toLocaleString()} ${unitWord}`}
@@ -366,7 +398,7 @@ export default function App() {
                             {r.name}
                           </span>
                         </td>
-                        <td>{r.pet ? 'pet' : r.mimic ? 'Mimic' : r.tertiary ? 'tertiary' : r.direct ? 'main' : 'shared table'}</td>
+                        <td>{r.pet ? 'pet' : r.mimic ? 'Mimic' : r.tertiary ? 'tertiary' : effective.consumeUnsired && UNSIRED_ITEMS.has(r.name) ? 'unsired' : r.direct ? 'main' : 'shared table'}</td>
                         <td className="num">{oneIn(perUnitRate(r))}</td>
                         <td className="num">{gp(priceOf(r.name))}</td>
                       </tr>
@@ -475,6 +507,8 @@ function ResultsView(props: {
           </div>
         )}
       </section>
+
+      {source.consumeUnsired && <UnsiredSummary byName={byName} />}
 
       {results.mode === 'complete' && (
         <section className="panel">
@@ -613,5 +647,23 @@ function ResultsView(props: {
         </div>
       </section>
     </>
+  );
+}
+
+function UnsiredSummary({ byName }: { byName: Map<string, LootLine> }) {
+  let offered = 0;
+  for (const name of UNSIRED_ITEMS) offered += byName.get(name)?.drops ?? 0;
+  const pieces = BLUDGEON_PIECES.map((p) => byName.get(p)?.qty ?? 0);
+  const bludgeons = Math.min(...pieces);
+  const spare = pieces.reduce((a, b) => a + b, 0) - 3 * bludgeons;
+  return (
+    <section className="panel">
+      <h3>Font of Consumption</h3>
+      <p>
+        You offered <b>{offered.toLocaleString()}</b> unsired. The bludgeon pieces make <b>{bludgeons.toLocaleString()}</b> full Abyssal bludgeon
+        {bludgeons === 1 ? '' : 's'}
+        {spare > 0 ? `, with ${spare} piece${spare === 1 ? '' : 's'} toward the next one` : ''}.
+      </p>
+    </section>
   );
 }

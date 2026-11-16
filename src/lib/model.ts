@@ -3,6 +3,7 @@
 import type { DropEntry, ParsedTable } from './parsePage';
 import { applyVestigeCounter } from './dt2';
 import { meanQuantity, type Quantity } from './parseText';
+import { consumeUnsiredRates } from './sire';
 import { mimicEncounter, mimicNote } from './mimic';
 
 export interface Leaf {
@@ -54,6 +55,8 @@ export interface DropSource {
   mainRolls: Rolls;
   independent: Independent[];
   notes: string[];
+  /** Abyssal Sire only: offer each unsired at the Font of Consumption instead of keeping it. */
+  consumeUnsired?: boolean;
 }
 
 export type SubtableResolver = (page: string, section?: string) => Promise<ParsedTable | null>;
@@ -241,6 +244,7 @@ export function itemRates(src: DropSource): Map<string, ItemRate> {
     for (const leaf of ind.also ?? []) add(leaf, ind.rolls, ind.p, false, false, false);
     mimic = false;
   }
+  if (src.consumeUnsired) consumeUnsiredRates(rates);
   return rates;
 }
 

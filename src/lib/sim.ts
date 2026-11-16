@@ -1,6 +1,7 @@
 // The Monte Carlo engine: rolls kills (or caskets) against a DropSource.
 
 import type { DropSource, Leaf, Outcome, Pool } from './model';
+import { consumingEmit } from './sire';
 
 export type Rng = () => number;
 
@@ -72,6 +73,11 @@ export function rollOnce(src: DropSource, rng: Rng, emit: Emit, state: RunState)
   }
 }
 
+/** One simulated player's loot callback, with any per-player mechanics (like offering unsired) applied. */
+function playerEmit(src: DropSource, emit: Emit, rng: Rng): Emit {
+  return src.consumeUnsired ? consumingEmit(emit, rng) : emit;
+}
+
 export interface LootLine {
   name: string;
   qty: number;
@@ -97,8 +103,9 @@ export function simulate(src: DropSource, units: number, rng: Rng = Math.random)
     line.qty += qty;
     line.drops += 1;
   };
+  const out = playerEmit(src, emit, rng);
   const state: RunState = new Map();
-  for (current = 1; current <= units; current++) rollOnce(src, rng, emit, state);
+  for (current = 1; current <= units; current++) rollOnce(src, rng, out, state);
   return { units, loot };
 }
 
@@ -109,9 +116,7 @@ export function simulate(src: DropSource, units: number, rng: Rng = Math.random)
 export function unitsToComplete(src: DropSource, items: string[], rng: Rng = Math.random, maxUnits = 5_000_000): number | null {
   const missing = new Set(items);
   if (!missing.size) return 0;
-  const emit: Emit = (name) => {
-    missing.delete(name);
-  };
+  const emit = playerEmit(src, (name) => missing.delete(name), rng);
   const state: RunState = new Map();
   for (let n = 1; n <= maxUnits; n++) {
     rollOnce(src, rng, emit, state);
@@ -135,9 +140,10 @@ export function simulateUntilComplete(src: DropSource, items: string[], rng: Rng
     line.drops += 1;
     missing.delete(name);
   };
+  const out = playerEmit(src, emit, rng);
   const state: RunState = new Map();
   for (current = 1; current <= maxUnits; current++) {
-    rollOnce(src, rng, emit, state);
+    rollOnce(src, rng, out, state);
     if (missing.size === 0) return { units: current, loot, complete: true };
   }
   return { units: maxUnits, loot, complete: false };
@@ -155,9 +161,9 @@ export function valueSamples(src: DropSource, units: number, runs: number, price
   const out: number[] = [];
   for (let r = 0; r < runs; r++) {
     let v = 0;
-    const emit: Emit = (name, qty) => {
+    const emit = playerEmit(src, (name, qty) => {
       v += qty * price(name);
-    };
+    }, rng);
     const state: RunState = new Map();
     for (let i = 0; i < units; i++) rollOnce(src, rng, emit, state);
     out.push(v);
