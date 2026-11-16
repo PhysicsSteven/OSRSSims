@@ -122,3 +122,8 @@ table.depth tbody tr { cursor: pointer; }
 table.depth tbody tr:hover { background: var(--chip); }
 table.depth tr.sel { background: var(--slot-got); font-weight: 600; }
 .tag { margin-left: 8px; font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+.pace { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.pace h3 { margin: 0; font-size: 15px; }
+.pace .lookup { display: flex; gap: 8px; align-items: flex-end; }
+.pace p { margin: 8px 0 0; }
