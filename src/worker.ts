@@ -1,24 +1,38 @@
 // Runs the heavy simulation work off the main thread.
 import type { DropSource } from './lib/model';
 import { doomValueSamples, simulateDoom, type DoomResult, type DoomStrategy } from './lib/doom';
+import { makeCoxRoller, type CoxSettings } from './lib/cox';
+import { raidValueSamples, simulateRaids, type RaidResult } from './lib/raid';
+import { makeToaRoller, type ToaSettings } from './lib/toa';
 import { simulate, simulateUntilComplete, unitsToComplete, valueSamples, type LootLine } from './lib/sim';
 
 export type WorkerRequest =
   | { type: 'run'; id: number; src: DropSource; units: number; prices: Record<string, number>; budget: number }
   | { type: 'complete'; id: number; src: DropSource; items: string[]; trials: number; prices: Record<string, number>; budget: number }
-  | { type: 'doom'; id: number; strategy: DoomStrategy; runs: number; prices: Record<string, number>; budget: number };
+  | { type: 'doom'; id: number; strategy: DoomStrategy; runs: number; prices: Record<string, number>; budget: number }
+  | { type: 'raid'; id: number; raid: RaidSettings; runs: number; prices: Record<string, number>; budget: number };
+
+export type RaidSettings = ({ kind: 'cox' } & CoxSettings) | ({ kind: 'toa' } & ToaSettings);
 
 export type WorkerResponse =
   | { type: 'run'; id: number; units: number; loot: LootLine[]; samples: number[] }
   | { type: 'complete'; id: number; units: number; complete: boolean; loot: LootLine[]; trialUnits: number[]; samples: number[] }
   | { type: 'doom'; id: number; result: DoomResult; samples: number[] }
+  | { type: 'raid'; id: number; result: RaidResult; samples: number[] }
   | { type: 'error'; id: number; message: string };
 
 self.onmessage = (ev: MessageEvent<WorkerRequest>) => {
   const req = ev.data;
   try {
     const price = (n: string) => req.prices[n] ?? 0;
-    if (req.type === 'doom') {
+    if (req.type === 'raid') {
+      const r = req.raid;
+      const factory = () => (r.kind === 'cox' ? makeCoxRoller(r) : makeToaRoller(r));
+      const result = simulateRaids(factory, req.runs);
+      const players = Math.min(400, Math.floor(req.budget / Math.max(1, req.runs)));
+      const samples = players >= 50 ? raidValueSamples(factory, req.runs, players, price) : [];
+      post({ type: 'raid', id: req.id, result, samples });
+    } else if (req.type === 'doom') {
       const result = simulateDoom(req.strategy, req.runs);
       const perPlayer = Math.max(1, result.levelsFought);
       const players = Math.min(400, Math.floor(req.budget / perPlayer));

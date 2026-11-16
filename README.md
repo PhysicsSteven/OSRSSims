@@ -35,6 +35,14 @@ Doom's loot works differently from a normal drop table, so it has its own module
 - You choose the delve to claim at, whether to claim early when a unique drops, and your own chance of dying on each delve. Dying forfeits the whole pile for that run.
 - A "How deep should you go?" table gives exact expected GP per run, GP per level, survival and unique chance for every claim depth, so you can compare strategies.
 
+## Raids
+
+Chambers of Xeric and Tombs of Amascut give loot from points rather than a drop table, so they have their own modules (`src/lib/cox.ts`, `src/lib/toa.ts`, `src/lib/raid.ts`, `src/RaidPanel.tsx`). Pick them from the **Raids** row or search for "cox" or "toa". Both follow one player ("you") in a team of any size: enter your points and the team's total.
+
+- **Chambers of Xeric:** 1% unique chance per 8,676 team points, up to 570,000 points per roll, with extra rolls past that (up to six uniques). The unique goes to a player weighted by points; everyone else gets two different common drops whose quantities grow with personal points up to 131,071. Challenge mode switches to its unique table and adds metamorphic dust and the twisted ancestral kit.
+- **Tombs of Amascut:** 1% unique chance per 10,500 − 20×RL team points (RL scales down above raid level 310), capped at 55%, one unique per raid. Raid level from your invocations also changes the unique weights, the low-level 1/50 rule, the common-loot bonus from 300 and the pet chance. Tertiaries (clue, Thread of Elidinis, keris jewels) are included.
+- Each panel shows exact per-raid chances and expected GP, the unique and common tables at your settings, and a simulation of any number of raids with a luck percentile. Every assumption is listed in the panel's notes.
+
 The per-delve rates are kept in the module by hand because the wiki publishes them as per-level tables rather than an item-drops table. Two details the wiki does not spell out are assumptions: the three uniques share one roll per level, and the common roll still happens on a level that gives a unique.
 
 ## Running it
@@ -62,8 +70,8 @@ Every loaded source has a "Show the drop table as read from the wiki" panel so y
 ## Known limits
 
 - Pages that list several variants of a monster in one table (for example different combat levels) are merged; if their rates add up to more than 100% they are scaled down and a note says so. Use the variant's own page when there is one.
-- Doom of Mokhaiotl's rates are hand-kept in `src/lib/doom.ts` and need updating by hand if Jagex changes them.
-- Raids (Chambers of Xeric, Theatre of Blood, Tombs of Amascut) use points-based loot rather than drop tables and are not modelled yet.
+- Doom of Mokhaiotl's and the raids' rates are hand-kept in `src/lib/doom.ts`, `src/lib/cox.ts` and `src/lib/toa.ts`, and need updating by hand if Jagex changes them.
+- Theatre of Blood is not modelled yet.
 - Ring of wealth and other drop-rate modifiers are not modelled yet.
 - The "collection log" is approximated as pets plus every item rarer than a chosen rate (default 1/100) that drops directly from the source.
 
