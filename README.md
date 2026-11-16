@@ -2,6 +2,8 @@
 
 A browser-based Old School RuneScape loot simulator for monsters, bosses and clue scroll reward caskets.
 
+**Live site: https://physicssteven.github.io/OSRSSims/**
+
 It reads drop tables and prices **live from the OSRS Wiki** every time you load a monster, so it stays current when Jagex changes a table or adds a new boss, with no data files to maintain.
 
 ## What it does
