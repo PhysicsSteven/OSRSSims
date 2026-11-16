@@ -4,11 +4,15 @@ import type { LootLine } from './lib/sim';
 import { chanceByNow, luckPercentile, normalCdf, percentileOf, quantile, valueMoments } from './lib/stats';
 import { clearCache, loadPage, loadPrices, resolveSubtable, searchTitles, spriteUrl, type PriceBook } from './lib/wiki';
 import type { WorkerRequest, WorkerResponse } from './worker';
+import { gp, luckWord, oneIn, pct } from './format';
+import { LuckBar, Sprite } from './ui';
+import { DoomPanel } from './DoomPanel';
+import { DOOM_ALIASES, DOOM_TITLE } from './lib/doom';
 
 const PICKS: Array<{ group: string; items: string[] }> = [
   {
     group: 'Bosses',
-    items: ['Zulrah', 'Vorkath', 'Cerberus', 'Kraken', 'General Graardor', "Kree'arra", 'Commander Zilyana', "K'ril Tsutsaroth", 'Corporeal Beast', 'Kalphite Queen', 'Callisto', 'Duke Sucellus', 'The Leviathan', 'Vardorvis', 'The Whisperer', 'Phantom Muspah'],
+    items: ['Zulrah', 'Vorkath', 'Cerberus', 'Kraken', 'General Graardor', "Kree'arra", 'Commander Zilyana', "K'ril Tsutsaroth", 'Corporeal Beast', 'Kalphite Queen', 'Callisto', 'Duke Sucellus', 'The Leviathan', 'Vardorvis', 'The Whisperer', 'Phantom Muspah', DOOM_TITLE],
   },
   { group: 'Slayer', items: ['Abyssal demon', 'Gargoyle', 'Kurask', 'Smoke devil', 'Dust devil', 'Hydra', 'Alchemical Hydra'] },
   {
@@ -33,42 +37,6 @@ type Results = {
   complete?: boolean;
   source: string;
 };
-
-export function gp(n: number): string {
-  const a = Math.abs(n);
-  if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (a >= 1e6) return `${(n / 1e6).toFixed(a >= 1e8 ? 1 : 2)}M`;
-  if (a >= 1e5) return `${(n / 1e3).toFixed(0)}K`;
-  return Math.round(n).toLocaleString();
-}
-
-const pct = (x: number) => `${(x * 100).toFixed(x > 0.999 || x < 0.001 ? 2 : 1)}%`;
-const oneIn = (p: number) => (p >= 1 ? 'Always' : p <= 0 ? 'Never' : `1/${(1 / p) >= 100 ? Math.round(1 / p).toLocaleString() : (1 / p).toFixed(1)}`);
-
-function luckWord(x: number): string {
-  if (x >= 0.9) return 'very lucky';
-  if (x >= 0.65) return 'lucky';
-  if (x > 0.35) return 'about average';
-  if (x > 0.1) return 'unlucky';
-  return 'very unlucky';
-}
-
-function LuckBar({ value }: { value: number }) {
-  return (
-    <span className="luck" title={`Luckier than ${pct(value)} of players`}>
-      <span className="luck-track">
-        <span className="luck-dot" style={{ left: `${value * 100}%` }} />
-      </span>
-      <span className="luck-num">{Math.round(value * 100)}</span>
-    </span>
-  );
-}
-
-function Sprite({ src }: { src: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return <span className="sprite" />;
-  return <img className="sprite" src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />;
-}
 
 function readUrl(): { source?: string; kills?: number } {
   const q = new URLSearchParams(location.search);
@@ -116,6 +84,19 @@ export default function App() {
   }, [query, showSuggest]);
 
   const load = useCallback(async (t: string, fresh = false) => {
+    if (DOOM_ALIASES.test(t.trim())) {
+      // Doom's loot is per delve level rather than a drop table, so it has its own module.
+      setSource(null);
+      setResults(null);
+      setLoadError(null);
+      setTitle(DOOM_TITLE);
+      setQuery(DOOM_TITLE);
+      const q = new URLSearchParams(location.search);
+      q.set('source', DOOM_TITLE);
+      q.delete('kills');
+      history.replaceState(null, '', `?${q}`);
+      return;
+    }
     setLoading(true);
     setLoadError(null);
     setResults(null);
@@ -173,6 +154,7 @@ export default function App() {
         setLoadError(res.message);
         return;
       }
+      if (res.type === 'doom') return;
       setResults({
         mode: res.type,
         units: res.units,
@@ -259,6 +241,8 @@ export default function App() {
         </div>
         {loadError && <p className="bad">{loadError}</p>}
       </section>
+
+      {title === DOOM_TITLE && !source && !loading && <DoomPanel prices={prices} />}
 
       {effective && rates && (
         <section className="panel controls">

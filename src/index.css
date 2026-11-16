@@ -111,3 +111,14 @@ footer { margin-top: 32px; font-size: 13px; color: var(--muted); line-height: 1.
 .pet { display: block; }
 .pet .sprite { vertical-align: middle; margin-right: 6px; }
 table.loot td { padding-top: 3px; padding-bottom: 3px; }
+/* Doom of Mokhaiotl module */
+.row label.check { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 14px; padding-bottom: 8px; }
+.row label.check input { width: auto; }
+.death { display: grid; gap: 6px; }
+.death-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.death-grid label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); text-align: center; }
+.row .death-grid label input { width: 64px; padding: 6px; }
+table.depth tbody tr { cursor: pointer; }
+table.depth tbody tr:hover { background: var(--chip); }
+table.depth tr.sel { background: var(--slot-got); font-weight: 600; }
+.tag { margin-left: 8px; font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
