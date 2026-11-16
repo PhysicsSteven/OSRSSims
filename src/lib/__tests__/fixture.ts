@@ -36,3 +36,14 @@ ${table(row('Loop half of key', '1', '20/128') + row('Tooth half of key', '1', '
 ${h(2, 'Gem drop table')}
 ${table(row('Nothing', 'N/A', '63/128') + row('Uncut sapphire', '1', '32/128') + row('Uncut diamond', '1', '2/128'))}
 </div>`;
+
+/** A DT2-style page: the vestige at its effective rate, plus a gold ring row the counter should replace. */
+export const LEVIATHAN_HTML = `<div class="mw-parser-output">
+${h(2, 'Drops')}
+${h(3, '100%')}
+${table(row('Bones', '1', 'Always'))}
+${h(3, 'Uniques')}
+${table(row('Venator vestige', '1', '1/768') + row('Chromium ingot', '1', '1/256') + row('Gold ring', '1', '1/384'))}
+${h(3, 'Resources')}
+${table(row('Coal', '50 (noted)', '20/128'))}
+</div>`;

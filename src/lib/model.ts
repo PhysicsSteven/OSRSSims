@@ -1,6 +1,7 @@
 // Builds a simulation-ready drop source from parsed wiki tables.
 
 import type { DropEntry, ParsedTable } from './parsePage';
+import { applyVestigeCounter } from './dt2';
 import { meanQuantity, type Quantity } from './parseText';
 import { consumeUnsiredRates } from './sire';
 
@@ -16,6 +17,11 @@ export interface Outcome {
   p: number;
   leaf?: Leaf;
   sub?: Pool;
+  /**
+   * A roll that walks through a fixed sequence instead of dropping one item: the n-th hit
+   * gives steps[n % steps.length]. The position carries over between kills (see dt2.ts).
+   */
+  counter?: { key: string; steps: Leaf[][] };
   label: string;
   rarityText: string;
 }
@@ -156,7 +162,7 @@ export async function buildSource(title: string, tables: ParsedTable[], resolve:
   if (mainEntries.some((e) => e.rarity.approximate) || indepEntries.some((e) => e.rarity.approximate))
     notes.push('Some rates on the wiki are approximate (shown with ~ or as a word like "Rare"); the simulator uses a best estimate for them.');
 
-  return { title, unit: tier ? 'casket' : 'kill', always, main, mainRolls, independent, notes };
+  return applyVestigeCounter({ title, unit: tier ? 'casket' : 'kill', always, main, mainRolls, independent, notes });
 }
 
 /** Expected number of each item per kill or casket, used for value and luck maths. */
@@ -170,6 +176,8 @@ export interface ItemRate {
   image?: string;
   /** True when the item can drop straight from this source, not only via a shared table like the RDT. */
   direct: boolean;
+  /** Set when the item only comes on every n-th success of its routes (DT2 vestiges). */
+  every?: number;
 }
 
 export function itemRates(src: DropSource): Map<string, ItemRate> {
@@ -186,11 +194,30 @@ export function itemRates(src: DropSource): Map<string, ItemRate> {
     r.pet ||= pet;
     r.direct ||= direct;
   };
+  const addCounter = (c: NonNullable<Outcome['counter']>, trials: number, p: number, pet: boolean, tertiary: boolean, direct: boolean) => {
+    // Group each item's steps: an item on every step of the cycle is an ordinary drop at rate p;
+    // otherwise it comes on some of the hits, and a single-step item gets the exact "every n-th" maths.
+    const n = c.steps.length;
+    const byName = new Map<string, Leaf[]>();
+    for (const step of c.steps) for (const leaf of step) byName.set(leaf.name, [...(byName.get(leaf.name) ?? []), leaf]);
+    for (const [name, leaves] of byName) {
+      if (leaves.length === 1) {
+        add(leaves[0], trials, p, pet, tertiary, direct);
+        const r = rates.get(name)!;
+        if (r.routes.length === 1) r.every = n;
+        else r.routes[r.routes.length - 1].p = p / n;
+      } else {
+        const merged: Leaf = { ...leaves[0], quantity: { options: leaves.flatMap((l) => l.quantity.options), noted: leaves[0].noted } };
+        add(merged, trials, (p * leaves.length) / n, pet, tertiary, direct);
+      }
+    }
+  };
   const walk = (pool: Pool, trials: number, scale: number, pet: boolean, tertiary: boolean, direct: boolean) => {
     for (const o of pool.outcomes) {
       const p = o.p * pool.scaledBy * scale;
       if (o.leaf) add(o.leaf, trials, p, pet, tertiary, direct);
       if (o.sub) walk(o.sub, trials, p, pet, tertiary, false);
+      if (o.counter) addCounter(o.counter, trials, p, pet, tertiary, direct);
     }
   };
   for (const leaf of src.always) add(leaf, 1, 1, false, false);
@@ -200,13 +227,14 @@ export function itemRates(src: DropSource): Map<string, ItemRate> {
     const pet = ind.kind === 'pet';
     if (ind.outcome.leaf) add(ind.outcome.leaf, ind.rolls, ind.p, pet, !pet);
     if (ind.outcome.sub) walk(ind.outcome.sub, ind.rolls, ind.p, pet, !pet, false);
+    if (ind.outcome.counter) addCounter(ind.outcome.counter, ind.rolls, ind.p, pet, !pet, true);
   }
   if (src.consumeUnsired) consumeUnsiredRates(rates);
   return rates;
 }
 
 export function perUnitRate(r: ItemRate): number {
-  return r.routes.reduce((a, x) => a + x.trials * x.p, 0);
+  return r.routes.reduce((a, x) => a + x.trials * x.p, 0) / (r.every ?? 1);
 }
 
 const NOT_IN_LOG = /^(coins|clue scroll|scroll box|nothing|brimstone key|larran's key|ancient shard|dark totem)/i;
