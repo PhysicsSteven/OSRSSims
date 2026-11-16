@@ -5,7 +5,7 @@ import { chanceByNow, luckPercentile, normalCdf, percentileOf, quantile, valueMo
 import { clearCache, loadPage, loadPrices, resolveSubtable, searchTitles, spriteUrl, type PriceBook } from './lib/wiki';
 import type { WorkerRequest, WorkerResponse } from './worker';
 import { gp, luckWord, oneIn, pct } from './format';
-import { LuckBar, Sprite } from './ui';
+import { LuckBar, NumberInput, Sprite } from './ui';
 import { DoomPanel } from './DoomPanel';
 import { DOOM_ALIASES, DOOM_TITLE } from './lib/doom';
 
@@ -259,7 +259,7 @@ export default function App() {
           <div className="row">
             <label>
               <span>Number of {unitWord}</span>
-              <input type="number" min={1} max={2000000} value={units} onChange={(e) => setUnits(Math.max(1, Number(e.target.value) || 1))} />
+              <NumberInput min={1} max={2000000} value={units} onChange={(v) => v != null && setUnits(Math.round(v))} />
             </label>
             <div className="quick">
               {[1, 100, 500, 1000, 5000, 10000].map((n) => (
@@ -280,15 +280,15 @@ export default function App() {
             </label>
             <label>
               <span>Main table rolls per {unitWord1}</span>
-              <input
-                type="number"
+              <NumberInput
                 min={1}
                 max={10}
-                value={rollsOverride ?? ''}
+                allowEmpty
+                value={rollsOverride}
                 placeholder={
                   source!.mainRolls.min === source!.mainRolls.max ? String(source!.mainRolls.min) : `${source!.mainRolls.min}–${source!.mainRolls.max}`
                 }
-                onChange={(e) => setRollsOverride(e.target.value ? Math.max(1, Math.min(10, Number(e.target.value))) : null)}
+                onChange={(v) => setRollsOverride(v == null ? null : Math.round(v))}
               />
             </label>
           </div>
