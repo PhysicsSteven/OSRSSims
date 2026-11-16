@@ -28,6 +28,14 @@ Doom's loot works differently from a normal drop table, so it has its own module
 
 The per-delve rates are kept in the module by hand because the wiki publishes them as per-level tables rather than an item-drops table. Two details the wiki does not spell out are assumptions: the three uniques share one roll per level, and the common roll still happens on a level that gives a unique.
 
+## Abyssal Sire: consume the unsired
+
+Load **Abyssal Sire** and tick **Consume the unsired** to offer every unsired at the Font of Consumption instead of keeping it (`src/lib/sire.ts`). The Sire's own table still comes live from the wiki; each unsired is then rolled on the Font's table from the [Unsired](https://oldschool.runescape.wiki/w/Unsired) page: bludgeon piece 62/128, Abyssal dagger 26/128, Jar of miasma 13/128, Abyssal whip 12/128, Abyssal head 10/128, Abyssal orphan 5/128.
+
+- Bludgeon pieces never repeat until you have a full bludgeon: each piece is drawn at random from the ones you have fewest of.
+- Once you own the orphan it leaves the table, which then rolls out of 123.
+- Results add a Font of Consumption panel with how many unsired you offered and how many full bludgeons the pieces make.
+
 ## Running it
 
 ```bash
