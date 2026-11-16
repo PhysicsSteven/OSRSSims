@@ -62,6 +62,7 @@ export default function App() {
   const [threshold, setThreshold] = useState(1 / 100);
   const [rollsOverride, setRollsOverride] = useState<number | null>(null);
   const [consume, setConsume] = useState(initial.consume);
+  const [mimicOn, setMimicOn] = useState(true);
   const [results, setResults] = useState<Results | null>(null);
   const [running, setRunning] = useState(false);
   const [sort, setSort] = useState<'value' | 'qty' | 'name'>('value');
@@ -128,13 +129,20 @@ export default function App() {
     if (initial.source) void load(initial.source);
   }, [initial.source, load]);
 
+  const hasMimic = !!source?.independent.some((i) => i.kind === 'mimic');
   const effective = useMemo(() => {
     if (!source) return null;
     let src = source;
+    if (!mimicOn && hasMimic)
+      src = {
+        ...src,
+        independent: src.independent.filter((i) => i.kind !== 'mimic'),
+        notes: src.notes.filter((n) => !n.startsWith('Mimic encounters are on')),
+      };
     if (rollsOverride != null) src = { ...src, mainRolls: { min: rollsOverride, max: rollsOverride } };
     if (consume && isSire(src.title)) src = { ...src, consumeUnsired: true };
     return src;
-  }, [source, rollsOverride, consume]);
+  }, [source, rollsOverride, mimicOn, hasMimic, consume]);
 
   const rates = useMemo(() => (effective ? itemRates(effective) : null), [effective]);
   const uniques = useMemo(() => (rates ? uniqueItems(rates, threshold) : []), [rates, threshold]);
@@ -303,6 +311,12 @@ export default function App() {
                 onChange={(v) => setRollsOverride(v == null ? null : Math.round(v))}
               />
             </label>
+            {hasMimic && (
+              <label className="check" title="Enable Mimic encounters at the strange casket in game to get this chance.">
+                <input type="checkbox" checked={mimicOn} onChange={(e) => setMimicOn(e.target.checked)} />
+                <span>Fight the Mimic (1/{Math.round(1 / source!.independent.find((i) => i.kind === 'mimic')!.p)} per casket)</span>
+              </label>
+            )}
           </div>
           {isSire(effective.title) && (
             <div className="row">
@@ -370,7 +384,7 @@ export default function App() {
                             {r.name}
                           </span>
                         </td>
-                        <td>{r.pet ? 'pet' : r.tertiary ? 'tertiary' : effective.consumeUnsired && UNSIRED_ITEMS.has(r.name) ? 'unsired' : r.direct ? 'main' : 'shared table'}</td>
+                        <td>{r.pet ? 'pet' : r.mimic ? 'Mimic' : r.tertiary ? 'tertiary' : effective.consumeUnsired && UNSIRED_ITEMS.has(r.name) ? 'unsired' : r.direct ? 'main' : 'shared table'}</td>
                         <td className="num">{oneIn(perUnitRate(r))}</td>
                         <td className="num">{gp(priceOf(r.name))}</td>
                       </tr>
