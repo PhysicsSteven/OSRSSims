@@ -18,6 +18,14 @@ It reads drop tables and prices **live from the OSRS Wiki** every time you load 
 - Kills-to-pet with the share of players who would have the pet by then.
 - GP luck percentile, compared against hundreds of simulated players doing the same number of kills.
 
+## Time to complete
+
+Under the simulator settings, a **Time to complete** section turns kills into hours of play. It shows on the results cards, next to collection log completion and next to the kill count where half of players have the pet.
+
+- The default kills per hour for each boss is [Wise Old Man](https://wiseoldman.net)'s "efficient hours bossed" rate for main, ironman, ultimate ironman or 1 Defence accounts. These are maxed, efficient rates, so there's an efficiency percentage to scale them down to your own pace. You can also type your own rate, and the site remembers it for each page.
+- The rates are fetched live from the Wise Old Man API, with a bundled copy (`src/lib/killTime.ts`) as a fallback. Monsters without a WOM rate (most Slayer monsters, clue caskets) need a rate typed in.
+- **Username lookup** (optional) reads your account type and boss kill counts from Wise Old Man. The result shows the KC range a simulation takes you through, and how many players have the pet by your current KC. A player WOM doesn't track yet is added once, from the hiscores.
+
 ## Doom of Mokhaiotl
 
 Doom's loot works differently from a normal drop table, so it has its own module (`src/lib/doom.ts`, `src/DoomPanel.tsx`). Pick **Doom of Mokhaiotl** from the boss list or search for it.

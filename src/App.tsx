@@ -8,6 +8,8 @@ import { gp, luckWord, oneIn, pct } from './format';
 import { LuckBar, NumberInput, Sprite } from './ui';
 import { DoomPanel } from './DoomPanel';
 import { DOOM_ALIASES, DOOM_TITLE } from './lib/doom';
+import { PacePanel, type Pace } from './PacePanel';
+import { formatHours } from './lib/killTime';
 import { CoxPanel, ToaPanel } from './RaidPanel';
 import { COX_ALIASES, COX_TITLE } from './lib/cox';
 import { TOA_ALIASES, TOA_TITLE } from './lib/toa';
@@ -72,6 +74,7 @@ export default function App() {
   const [results, setResults] = useState<Results | null>(null);
   const [running, setRunning] = useState(false);
   const [sort, setSort] = useState<'value' | 'qty' | 'name'>('value');
+  const [pace, setPace] = useState<Pace>({ kph: null, kc: null });
   const workerRef = useRef<Worker | null>(null);
   const reqId = useRef(0);
 
@@ -314,6 +317,7 @@ export default function App() {
               Simulate until collection log is complete
             </button>
           </div>
+          <PacePanel title={effective.title} unit={effective.unit === 'casket' ? 'casket' : 'kill'} onChange={setPace} />
           {effective.notes.length > 0 && (
             <details className="notes">
               <summary>How this table was read ({effective.notes.length} notes)</summary>
@@ -360,7 +364,7 @@ export default function App() {
       )}
 
       {results && effective && rates && results.source === effective.title && (
-        <ResultsView results={results} source={effective} rates={rates} uniques={uniques} priceOf={priceOf} prices={prices} moments={moments!} sort={sort} setSort={setSort} />
+        <ResultsView results={results} source={effective} rates={rates} uniques={uniques} priceOf={priceOf} prices={prices} moments={moments!} sort={sort} setSort={setSort} pace={pace} />
       )}
 
       <footer>
@@ -390,8 +394,10 @@ function ResultsView(props: {
   moments: { mean: number; variance: number };
   sort: 'value' | 'qty' | 'name';
   setSort: (s: 'value' | 'qty' | 'name') => void;
+  pace: Pace;
 }) {
-  const { results, source, rates, uniques, priceOf, prices, moments, sort, setSort } = props;
+  const { results, source, rates, uniques, priceOf, prices, moments, sort, setSort, pace } = props;
+  const hours = (units: number) => (pace.kph ? formatHours(units / pace.kph) : null);
   const n = results.units;
   const unitWord = source.unit === 'casket' ? 'caskets' : 'kills';
   const unitAbbr = source.unit === 'casket' ? 'casket' : 'kc';
@@ -443,6 +449,16 @@ function ResultsView(props: {
           </span>
           <span className="s">{uniques.length ? pct(got / uniques.length) : '—'} complete</span>
         </div>
+        {pace.kph != null && (
+          <div className="card">
+            <span className="k">Time to complete</span>
+            <span className="v">{hours(n)}</span>
+            <span className="s">
+              {n.toLocaleString()} {unitWord} at {pace.kph.toLocaleString()} per hour
+              {pace.kc != null && source.unit !== 'casket' ? `, which takes you from KC ${pace.kc.toLocaleString()} to ${(pace.kc + n).toLocaleString()}` : ''}
+            </span>
+          </div>
+        )}
       </section>
 
       {results.mode === 'complete' && (
@@ -450,12 +466,15 @@ function ResultsView(props: {
           <h3>Collection log completion</h3>
           {results.complete ? (
             <p>
-              You finished the log at <b>{n.toLocaleString()}</b> {unitWord}.
+              You finished the log at <b>{n.toLocaleString()}</b> {unitWord}
+              {pace.kph != null && <> (about {hours(n)} of play)</>}.
               {trials.length > 0 && (
                 <>
                   {' '}
-                  Across {trials.length} simulated players the median was <b>{quantile(trials, 0.5).toLocaleString()}</b>, with 10% done by{' '}
-                  {quantile(trials, 0.1).toLocaleString()} and 90% by {quantile(trials, 0.9).toLocaleString()}. You were faster than{' '}
+                  Across {trials.length} simulated players the median was <b>{quantile(trials, 0.5).toLocaleString()}</b>
+                  {pace.kph != null && <> ({hours(quantile(trials, 0.5))})</>}, with 10% done by {quantile(trials, 0.1).toLocaleString()} and 90% by{' '}
+                  {quantile(trials, 0.9).toLocaleString()}
+                  {pace.kph != null && <> ({hours(quantile(trials, 0.9))})</>}. You were faster than{' '}
                   <b>{pct(1 - percentileOf(trials, n))}</b> of them.
                 </>
               )}
@@ -472,6 +491,7 @@ function ResultsView(props: {
           {pets.map((p) => {
             const line = byName.get(p.name);
             const r = perUnitRate(p);
+            const half = Math.ceil(Math.log(0.5) / Math.log1p(-Math.min(r, 0.999999)));
             return (
               <p key={p.name} className="pet">
                 <Sprite src={icon(p.name)} />
@@ -485,7 +505,14 @@ function ResultsView(props: {
                     no pet in {n.toLocaleString()} {unitWord}. {pct(chanceByNow(p, n))} of players would have it by now.
                   </>
                 )}{' '}
-                Half of players get it by {unitAbbr} {Math.ceil(Math.log(0.5) / Math.log1p(-Math.min(r, 0.999999))).toLocaleString()}.
+                Half of players get it by {unitAbbr} {half.toLocaleString()}
+                {pace.kph != null && <> ({hours(half)})</>}.
+                {pace.kc != null && source.unit !== 'casket' && (
+                  <>
+                    {' '}
+                    At your KC of {pace.kc.toLocaleString()}, {pct(chanceByNow(p, pace.kc))} of players have it.
+                  </>
+                )}
               </p>
             );
           })}
