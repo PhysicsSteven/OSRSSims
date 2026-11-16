@@ -90,3 +90,34 @@ describe('page parsing and model', () => {
     expect(src.mainRolls).toEqual({ min: 4, max: 6 });
   });
 });
+
+describe('the Mimic', () => {
+  it('only rolls for elite and master caskets', async () => {
+    const hard = await buildSource('Reward casket (hard)', parseDropTables(MONSTER_HTML), resolver);
+    expect(hard.independent.some((i) => i.kind === 'mimic')).toBe(false);
+    const elite = await buildSource('Reward casket (elite)', parseDropTables(MONSTER_HTML), resolver);
+    expect(elite.independent.find((i) => i.kind === 'mimic')?.p).toBeCloseTo(1 / 35);
+    const master = await buildSource('Reward casket (master)', parseDropTables(MONSTER_HTML), resolver);
+    expect(master.independent.find((i) => i.kind === 'mimic')?.p).toBeCloseTo(1 / 15);
+  });
+
+  it('gives Mimic loot at the expected rates', async () => {
+    const src = await buildSource('Reward casket (master)', parseDropTables(MONSTER_HTML), resolver);
+    const mimic = src.independent.find((i) => i.kind === 'mimic')!;
+    expect(mimic.outcome.sub!.cumulative.at(-1)).toBeCloseTo(1, 6);
+    const rates = itemRates(src);
+    expect(perUnitRate(rates.get('Ring of 3rd age')!)).toBeCloseTo((1 / 15) * (6 / 228));
+    expect(perUnitRate(rates.get('Mahogany plank')!)).toBeCloseTo(1 / 15);
+    expect(rates.get('Ring of 3rd age')!.mimic).toBe(true);
+    expect(uniqueItems(rates, 1 / 100).map((u) => u.name)).toContain('Ring of 3rd age');
+
+    const n = 300_000;
+    const res = simulate(src, n, seededRng(7));
+    expect(res.loot.get('Mahogany plank')!.drops / n).toBeCloseTo(1 / 15, 2);
+    const death = res.loot.get('Death rune')!;
+    expect(death.qty).toBe(death.drops * 600);
+
+    const price = (name: string) => (name === 'Mahogany plank' ? 1000 : 0);
+    expect(valueMoments(src, price).mean).toBeCloseTo(1000 / 15, 6);
+  });
+});

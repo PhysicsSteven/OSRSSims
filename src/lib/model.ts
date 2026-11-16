@@ -3,6 +3,7 @@
 import type { DropEntry, ParsedTable } from './parsePage';
 import { applyVestigeCounter } from './dt2';
 import { meanQuantity, type Quantity } from './parseText';
+import { mimicEncounter, mimicNote } from './mimic';
 
 export interface Leaf {
   name: string;
@@ -38,7 +39,9 @@ export interface Independent {
   p: number;
   rolls: number;
   outcome: Outcome;
-  kind: 'tertiary' | 'pet';
+  kind: 'tertiary' | 'pet' | 'mimic';
+  /** Items given alongside the outcome every time the roll succeeds. */
+  also?: Leaf[];
 }
 
 export type Rolls = { min: number; max: number };
@@ -156,6 +159,10 @@ export async function buildSource(title: string, tables: ParsedTable[], resolve:
   const listedRolls = Math.max(1, ...mainEntries.map((e) => e.rarity.rolls));
   const mainRolls = tier ? CLUE_ROLLS[tier] : { min: listedRolls, max: listedRolls };
   if (tier) notes.push(`${tier[0].toUpperCase() + tier.slice(1)} caskets give ${mainRolls.min}–${mainRolls.max} reward rolls; tertiary rewards roll once per casket.`);
+  if (tier === 'elite' || tier === 'master') {
+    independent.push(mimicEncounter(tier, notes));
+    notes.push(mimicNote(tier));
+  }
   if (mainEntries.some((e) => e.rarity.approximate) || indepEntries.some((e) => e.rarity.approximate))
     notes.push('Some rates on the wiki are approximate (shown with ~ or as a word like "Rare"); the simulator uses a best estimate for them.');
 
@@ -170,6 +177,8 @@ export interface ItemRate {
   meanQty: number;
   pet: boolean;
   tertiary: boolean;
+  /** True when the item can come from the Mimic. */
+  mimic?: boolean;
   image?: string;
   /** True when the item can drop straight from this source, not only via a shared table like the RDT. */
   direct: boolean;
@@ -179,6 +188,7 @@ export interface ItemRate {
 
 export function itemRates(src: DropSource): Map<string, ItemRate> {
   const rates = new Map<string, ItemRate>();
+  let mimic = false;
   const add = (leaf: Leaf, trials: number, p: number, pet: boolean, tertiary: boolean, direct = true) => {
     if (p <= 0) return;
     let r = rates.get(leaf.name);
@@ -190,6 +200,7 @@ export function itemRates(src: DropSource): Map<string, ItemRate> {
     r.routes.push({ trials, p });
     r.pet ||= pet;
     r.direct ||= direct;
+    if (mimic) r.mimic = true;
   };
   const addCounter = (c: NonNullable<Outcome['counter']>, trials: number, p: number, pet: boolean, tertiary: boolean, direct: boolean) => {
     // Group each item's steps: an item on every step of the cycle is an ordinary drop at rate p;
@@ -222,9 +233,13 @@ export function itemRates(src: DropSource): Map<string, ItemRate> {
   walk(src.main, avgRolls, 1, false, false, true);
   for (const ind of src.independent) {
     const pet = ind.kind === 'pet';
-    if (ind.outcome.leaf) add(ind.outcome.leaf, ind.rolls, ind.p, pet, !pet);
-    if (ind.outcome.sub) walk(ind.outcome.sub, ind.rolls, ind.p, pet, !pet, false);
+    mimic = ind.kind === 'mimic';
+    // The Mimic's own table counts as direct: its items (like the Ring of 3rd age) only come from here.
+    if (ind.outcome.leaf) add(ind.outcome.leaf, ind.rolls, ind.p, pet, !pet && !mimic);
+    if (ind.outcome.sub) walk(ind.outcome.sub, ind.rolls, ind.p, pet, !pet && !mimic, mimic);
     if (ind.outcome.counter) addCounter(ind.outcome.counter, ind.rolls, ind.p, pet, !pet, true);
+    for (const leaf of ind.also ?? []) add(leaf, ind.rolls, ind.p, false, false, false);
+    mimic = false;
   }
   return rates;
 }
