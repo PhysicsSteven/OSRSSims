@@ -53,7 +53,11 @@ export function rollOnce(src: DropSource, rng: Rng, emit: Emit): void {
   const rolls = src.mainRolls.min === src.mainRolls.max ? src.mainRolls.min : randInt(rng, src.mainRolls.min, src.mainRolls.max);
   for (let i = 0; i < rolls; i++) rollPool(src.main, rng, emit);
   for (const ind of src.independent) {
-    for (let i = 0; i < ind.rolls; i++) if (rng() < ind.p) emitOutcome(ind.outcome, rng, emit, 0);
+    for (let i = 0; i < ind.rolls; i++) {
+      if (rng() >= ind.p) continue;
+      emitOutcome(ind.outcome, rng, emit, 0);
+      if (ind.also) for (const leaf of ind.also) emit(leaf.name, sampleQty(leaf, rng));
+    }
   }
 }
 

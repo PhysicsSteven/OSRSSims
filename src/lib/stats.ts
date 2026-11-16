@@ -117,6 +117,12 @@ export function valueMoments(src: DropSource, price: PriceOf): { mean: number; v
   variance += er * (roll.m2 - roll.m1 * roll.m1) + varR * roll.m1 * roll.m1;
   for (const ind of src.independent) {
     const m = outcomeMoments(ind.outcome, price);
+    for (const leaf of ind.also ?? []) {
+      // Extra items given with the outcome: add them to the per-success value.
+      const a = leafMoments(leaf, price);
+      m.m2 += a.m2 + 2 * m.m1 * a.m1;
+      m.m1 += a.m1;
+    }
     const e1 = ind.p * m.m1;
     mean += ind.rolls * e1;
     variance += ind.rolls * (ind.p * m.m2 - e1 * e1);
