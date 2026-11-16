@@ -15,6 +15,17 @@ It reads drop tables and prices **live from the OSRS Wiki** every time you load 
 - Kills-to-pet with the share of players who would have the pet by then.
 - GP luck percentile, compared against hundreds of simulated players doing the same number of kills.
 
+## Doom of Mokhaiotl
+
+Doom's loot works differently from a normal drop table, so it has its own module (`src/lib/doom.ts`, `src/DoomPanel.tsx`). Pick **Doom of Mokhaiotl** from the boss list or search for it.
+
+- Each delve level you clear adds a common roll, a unique roll, a pet roll, an elite clue roll and (from delve 3) a fixed stack of demon tears to a loot pile.
+- Unique rates rise with depth (cloth from delve 2, Eye of ayak from 3, Avernic treads from 4, Dom from 6) and stop improving at delve 9. Common quantities scale from −50% at delve 1 to +20% at delve 9+.
+- You choose the delve to claim at, whether to claim early when a unique drops, and your own chance of dying on each delve. Dying forfeits the whole pile for that run.
+- A "How deep should you go?" table gives exact expected GP per run, GP per level, survival and unique chance for every claim depth, so you can compare strategies.
+
+The per-delve rates are kept in the module by hand because the wiki publishes them as per-level tables rather than an item-drops table. Two details the wiki does not spell out are assumptions: the three uniques share one roll per level, and the common roll still happens on a level that gives a unique.
+
 ## Running it
 
 ```bash
@@ -40,6 +51,7 @@ Every loaded source has a "Show the drop table as read from the wiki" panel so y
 ## Known limits
 
 - Pages that list several variants of a monster in one table (for example different combat levels) are merged; if their rates add up to more than 100% they are scaled down and a note says so. Use the variant's own page when there is one.
+- Doom of Mokhaiotl's rates are hand-kept in `src/lib/doom.ts` and need updating by hand if Jagex changes them.
 - Raids (Chambers of Xeric, Theatre of Blood, Tombs of Amascut) use points-based loot rather than drop tables and are not modelled yet.
 - Ring of wealth and other drop-rate modifiers are not modelled yet.
 - The "collection log" is approximated as pets plus every item rarer than a chosen rate (default 1/100) that drops directly from the source.

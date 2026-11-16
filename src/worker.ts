@@ -1,21 +1,30 @@
 // Runs the heavy simulation work off the main thread.
 import type { DropSource } from './lib/model';
+import { doomValueSamples, simulateDoom, type DoomResult, type DoomStrategy } from './lib/doom';
 import { simulate, simulateUntilComplete, unitsToComplete, valueSamples, type LootLine } from './lib/sim';
 
 export type WorkerRequest =
   | { type: 'run'; id: number; src: DropSource; units: number; prices: Record<string, number>; budget: number }
-  | { type: 'complete'; id: number; src: DropSource; items: string[]; trials: number; prices: Record<string, number>; budget: number };
+  | { type: 'complete'; id: number; src: DropSource; items: string[]; trials: number; prices: Record<string, number>; budget: number }
+  | { type: 'doom'; id: number; strategy: DoomStrategy; runs: number; prices: Record<string, number>; budget: number };
 
 export type WorkerResponse =
   | { type: 'run'; id: number; units: number; loot: LootLine[]; samples: number[] }
   | { type: 'complete'; id: number; units: number; complete: boolean; loot: LootLine[]; trialUnits: number[]; samples: number[] }
+  | { type: 'doom'; id: number; result: DoomResult; samples: number[] }
   | { type: 'error'; id: number; message: string };
 
 self.onmessage = (ev: MessageEvent<WorkerRequest>) => {
   const req = ev.data;
   try {
     const price = (n: string) => req.prices[n] ?? 0;
-    if (req.type === 'run') {
+    if (req.type === 'doom') {
+      const result = simulateDoom(req.strategy, req.runs);
+      const perPlayer = Math.max(1, result.levelsFought);
+      const players = Math.min(400, Math.floor(req.budget / perPlayer));
+      const samples = players >= 50 ? doomValueSamples(req.strategy, req.runs, players, price) : [];
+      post({ type: 'doom', id: req.id, result, samples });
+    } else if (req.type === 'run') {
       const res = simulate(req.src, req.units);
       const runs = Math.min(400, Math.floor(req.budget / Math.max(1, req.units)));
       const samples = runs >= 50 ? valueSamples(req.src, req.units, runs, price) : [];
