@@ -25,7 +25,7 @@ import {
 import { percentileOf } from './lib/stats';
 import { spriteUrl, type PriceBook } from './lib/wiki';
 import { gp, luckWord, oneIn, pct } from './format';
-import { Sprite } from './ui';
+import { NumberInput, Sprite } from './ui';
 import type { WorkerRequest, WorkerResponse } from './worker';
 
 const LEVELS = Array.from({ length: MAX_RATE_LEVEL }, (_, i) => i + 1);
@@ -89,7 +89,7 @@ export function DoomPanel({ prices }: { prices: PriceBook | null }) {
         <div className="row">
           <label>
             <span>Number of runs</span>
-            <input type="number" min={1} max={200000} value={runs} onChange={(e) => setRuns(Math.max(1, Number(e.target.value) || 1))} />
+            <NumberInput min={1} max={200000} value={runs} onChange={(v) => v != null && setRuns(Math.round(v))} />
           </label>
           <div className="quick">
             {[1, 10, 100, 500, 1000, 5000].map((n) => (
@@ -100,7 +100,7 @@ export function DoomPanel({ prices }: { prices: PriceBook | null }) {
           </div>
           <label>
             <span>Claim loot after delve</span>
-            <input type="number" min={1} max={50} value={claimAfter} onChange={(e) => setClaimAfter(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} />
+            <NumberInput min={1} max={50} value={claimAfter} onChange={(v) => v != null && setClaimAfter(Math.round(v))} />
           </label>
           <label className="check">
             <input type="checkbox" checked={stopOnUnique} onChange={(e) => setStopOnUnique(e.target.checked)} />
@@ -114,13 +114,12 @@ export function DoomPanel({ prices }: { prices: PriceBook | null }) {
               {LEVELS.map((l, i) => (
                 <label key={l}>
                   <span>{levelLabel(l)}</span>
-                  <input
-                    type="number"
+                  <NumberInput
                     min={0}
                     max={100}
                     step={0.5}
                     value={deathPct[i]}
-                    onChange={(e) => setDeathPct((d) => d.map((x, j) => (j === i ? Math.max(0, Math.min(100, Number(e.target.value) || 0)) : x)))}
+                    onChange={(v) => v != null && setDeathPct((d) => d.map((x, j) => (j === i ? v : x)))}
                   />
                 </label>
               ))}
