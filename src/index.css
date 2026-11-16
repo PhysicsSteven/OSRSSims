@@ -79,6 +79,8 @@ h3 { margin: 0 0 12px; font-size: 17px; }
 .row label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .row label input { width: 140px; color: var(--ink); }
 .row label select { color: var(--ink); }
+.row label.check { display: flex; align-items: center; gap: 6px; color: var(--ink); padding-bottom: 6px; }
+.row label.check input { width: auto; }
 .quick { display: flex; gap: 6px; flex-wrap: wrap; }
 .notes { margin-top: 12px; font-size: 14px; color: var(--muted); }
 .notes ul { margin: 8px 0 0; padding-left: 20px; }
